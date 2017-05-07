@@ -41,6 +41,7 @@
 #include "OLED_defs.h"
 #include "OLED_driver.h"
 #include "OLED_resources.h"
+#include "agile.h"
 
 void Task1( task_param_t param )
 {
@@ -65,6 +66,33 @@ void Task1( task_param_t param )
 	OLED_SetTextProperties( &oled_text_properties );
 
 	OLED_DrawText( "Welcome" );
+
+	oled_status_t
+		  statusOLED = OLED_STATUS_SUCCESS;
+	uint8_t
+		  xCrd = 0,
+		  yCrd = 0,
+		  width,
+		  height;
+
+	      OLED_GetImageDimensions( &width, &height, (const uint8_t*)agile96_bmp );
+
+
+	while (1)
+    {
+        statusOLED = OLED_DrawScreen(
+        								agile96_bmp,
+                                        xCrd,
+                                        yCrd,
+                                        width,
+                                        height,
+										OLED_TRANSITION_NONE // transition
+                                    );
+        if ( OLED_STATUS_SUCCESS == statusOLED )
+        {
+            break;
+        }
+    }
 
 	while(1)
 	{
