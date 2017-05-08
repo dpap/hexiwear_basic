@@ -93,6 +93,8 @@ void HEXIWEAR_startup( task_param_t param )
   /** create basic tasks */
   status |= HostInterface_Init();
 
+  status |= sensor_Init();
+
   /** set GPIO interrupt for the tap function */
   PORT_HAL_SetPinIntMode( PORTC, 1, kPortIntFallingEdge );
 
