@@ -43,6 +43,15 @@
 #include "OLED_resources.h"
 #include "agile.h"
 
+static bool isPowerActive_OLED    = false;
+static task_handler_t powerOled_taskHandler;
+
+
+#define PWR_OLED_TurnON()  GPIO_DRV_SetPinOutput( PWR_OLED ); OSA_TimeDelay( 50 ); isPowerActive_OLED = true
+#define PWR_OLED_TurnOFF() isPowerActive_OLED = false; GPIO_DRV_ClearPinOutput( PWR_OLED )
+
+void drawAgileScreen();
+
 void Task1( task_param_t param )
 {
     oled_dynamic_area_t oled_dynamic_area;
@@ -67,32 +76,7 @@ void Task1( task_param_t param )
 
 	OLED_DrawText( "Welcome" );
 
-	oled_status_t
-		  statusOLED = OLED_STATUS_SUCCESS;
-	uint8_t
-		  xCrd = 0,
-		  yCrd = 0,
-		  width,
-		  height;
-
-	      OLED_GetImageDimensions( &width, &height, (const uint8_t*)agile96_bmp );
-
-
-	while (1)
-    {
-        statusOLED = OLED_DrawScreen(
-        								agile96_bmp,
-                                        xCrd,
-                                        yCrd,
-                                        width,
-                                        height,
-										OLED_TRANSITION_NONE // transition
-                                    );
-        if ( OLED_STATUS_SUCCESS == statusOLED )
-        {
-            break;
-        }
-    }
+	drawAgileScreen();
 
 	while(1)
 	{
@@ -108,6 +92,7 @@ void Task1( task_param_t param )
 		    {
 		    	OLED_DrawText( "Up" );
 				// Insert your code here...
+				vTaskResume( powerOled_taskHandler);
 
 				break;
 		    }
@@ -115,19 +100,22 @@ void Task1( task_param_t param )
 		    {
 		    	OLED_DrawText( "Down" );
 				// Insert your code here...
+				vTaskResume( powerOled_taskHandler);
 
 				break;
 		    }
 		    case packetType_pressLeft:
 		    {
-		    	OLED_DrawText( "Left" );
+		    	//OLED_DrawText( "Left" );
 				// Insert your code here...
-
+				vTaskResume( powerOled_taskHandler);
+		    	drawAgileScreen();
 				break;
 		    }
 		    case packetType_pressRight:
 		    {
 		    	OLED_DrawText( "Right" );
+				vTaskResume( powerOled_taskHandler);
 				// Insert your code here...
 
 				break;
@@ -146,6 +134,43 @@ void Task1( task_param_t param )
 	}
 }
 
+
+void powerOLED( task_param_t param )
+{
+	while (1){
+		OSA_TimeDelay( 10000 );
+		PWR_OLED_TurnOFF();
+		vTaskSuspend( powerOled_taskHandler);
+		PWR_OLED_TurnON();
+	}
+}
+
+void drawAgileScreen(){
+	oled_status_t
+		  statusOLED = OLED_STATUS_SUCCESS;
+	uint8_t
+		  xCrd = 0,
+		  yCrd = 0,
+		  width,
+		  height;
+
+	      OLED_GetImageDimensions( &width, &height, (const uint8_t*)agile96_bmp );
+
+  while (1) {
+	statusOLED = OLED_DrawScreen(
+     								agile96_bmp,
+                                     xCrd,
+                                     yCrd,
+                                     width,
+                                     height,
+										OLED_TRANSITION_NONE // transition
+                                 );
+     if ( OLED_STATUS_SUCCESS == statusOLED )
+     {
+         break;
+     }
+  }
+}
 void main()
 {
   /** initialize the hardware */
@@ -162,10 +187,21 @@ void main()
                   (uint8_t*)"Task1",
                   0x1000,
                   NULL,
-                  10,
+                  1,
                   (task_param_t)0,
                   false,
                   NULL
+                );
+
+  OSA_TaskCreate(
+		          powerOLED,
+                  (uint8_t*)"PowerOLED",
+                  0x1000,
+                  NULL,
+                  0,
+                  (task_param_t)0,
+                  false,
+				  &powerOled_taskHandler
                 );
 
   /** start RTOS scheduler */
@@ -173,3 +209,5 @@ void main()
 
   while (1) {}
 }
+
+
