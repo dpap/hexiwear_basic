@@ -41,6 +41,7 @@
 
 /** interface task handlers */
 extern task_handler_t
+  hexiwear_intf_TX_handler, /**< outgoing traffic handler */
   hexiwear_intf_RX_handler, /**< incoming traffic handler */
   hexiwear_intf_OK_handler; /**< OK packet handler */
 

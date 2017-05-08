@@ -164,6 +164,7 @@ typedef enum
 osa_status_t HostInterface_Init(void);
 
 osa_status_t HostInterface_TxInit(void);
+osa_status_t HostInterface_TxQueueMsgPut(hostInterface_packet_t * hostInterface_Packet, bool confirmationReq );
 
 osa_status_t HostInterface_RxInit(void);
 osa_status_t HostInterface_RxQueueMsgPut(hostInterface_packet_t * pHostInterface_packet);

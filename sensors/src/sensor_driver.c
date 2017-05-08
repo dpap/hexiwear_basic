@@ -5,6 +5,9 @@
  *      Author: dp
  */
 #include "sensor_driver.h"
+#include "host_mcu_interface.h"
+
+#define TypeMember_NumEl( type, member ) ( sizeof( ( (type*)0 )->member ) / sizeof( ( (type*)0 )->member[0] ) )
 
 static void sensor_GetData( task_param_t param );
 static void sensor_InitModules();
@@ -97,10 +100,40 @@ static void sensor_GetData( task_param_t param )
 		   }
 		   else
 		   {
-			  fxosStatus = FXOS_ReadRawData( (int16_t*)&motionData );
+			   fxosStatus = FXOS_ReadRawData( (int16_t*)&motionData );
+
+			   //assemble packet for BLE
+			   void *dataStart = NULL;
+			   // data packet to be sent
+			   hostInterface_packet_t sensorPacket;
+
+			   sensorPacket.type = packetType_accel;
+
+			   dataStart           = (void*)&( motionData.accData[0] );
+			   sensorPacket.length = TypeMember_NumEl( motionData_t ,  accData );
+			   sensorPacket.length *= sizeof( mE_t );
+
+			   sensorPacket.data[0] =  motionData.accData[0] & 0xFF;
+			   sensorPacket.data[1] = ( motionData.accData[0] >>8) & 0xFF;
+			   sensorPacket.data[2] =  motionData.accData[1] & 0xFF;
+			   sensorPacket.data[3] = ( motionData.accData[1] >>8) & 0xFF;
+			   sensorPacket.data[4] =  motionData.accData[2] & 0xFF;
+			   sensorPacket.data[5] = ( motionData.accData[2] >>8) & 0xFF;
+
+			   // add trailer byte, denoting the packet end
+			   sensorPacket.data[ sensorPacket.length ] = gHostInterface_trailerByte;
+
+			   osa_status_t hostStatus =  HostInterface_TxQueueMsgPut( &sensorPacket, false );
+			   if (hostStatus == kStatus_OSA_Success){
+				  asm ("nop");
+			   } else {
+				   //error, queue probably full
+				  asm ("nop");
+			   }
+
 		   }
 		 }
-		 OSA_TimeDelay( 500 );
+		 OSA_TimeDelay( 10 );
 	    }
 
 }

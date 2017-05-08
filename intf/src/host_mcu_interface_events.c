@@ -139,3 +139,28 @@ osa_status_t HostInterface_EventSendOkPacketWait()
                                   &setFlags
                                 );
 }
+
+/**
+ * wait for the OK packet event
+ * @return  status flag
+ */
+osa_status_t HostInterface_EventConfirmPacketWait()
+{
+  event_flags_t
+    setFlags;
+
+  return HostInterface_EventWait(
+                                  gHostInterface_eventConfirmPacketMask,
+                                  gHostInterface_retransmitTimeout,
+                                  &setFlags
+                                );
+}
+
+/**
+ * clear the OK packet event
+ * @return  status flag
+ */
+osa_status_t HostInterface_EventConfirmPacketClear()
+{
+  return HostInterface_EventClear(gHostInterface_eventConfirmPacketMask);
+}
