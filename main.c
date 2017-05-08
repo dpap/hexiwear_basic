@@ -122,6 +122,7 @@ void Task1( task_param_t param )
 		    }
 		    case packetType_passDisplay:
 		    {
+		    	vTaskResume( powerOled_taskHandler);
 		    	char buffer [20];
 		    	uint32_t passkey = 0;
 		    	memcpy(&passkey, command_packet.data, 3);
