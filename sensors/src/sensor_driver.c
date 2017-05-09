@@ -7,10 +7,25 @@
 #include "sensor_driver.h"
 #include "host_mcu_interface.h"
 
+static bool
+    isPowerActive_HTU_TSL = false,
+	isPowerActive_BATTERY = false,
+	isPowerActive_MAXIM   = false;
+
+#define PWR_HTU_TSL_TurnON()  GPIO_DRV_ClearPinOutput( PWR_SENSORS_NF ); OSA_TimeDelay( 50 ); isPowerActive_HTU_TSL = true
+#define PWR_HTU_TSL_TurnOFF() isPowerActive_HTU_TSL = false; GPIO_DRV_SetPinOutput( PWR_SENSORS_NF )
+
+#define PWR_HR_TurnON()  GPIO_DRV_SetPinOutput( PWR_HR ); OSA_TimeDelay( 50 ); isPowerActive_MAXIM = true
+#define PWR_HR_TurnOFF() isPowerActive_MAXIM = false; GPIO_DRV_ClearPinOutput( PWR_HR )
+
+#define PWR_BATT_TurnON()  GPIO_DRV_ClearPinOutput( PWR_BAT_SENS ); OSA_TimeDelay( 50 ); isPowerActive_BATTERY = true
+#define PWR_BATT_TurnOFF() isPowerActive_BATTERY = false; GPIO_DRV_SetPinOutput( PWR_BAT_SENS )
+
 #define TypeMember_NumEl( type, member ) ( sizeof( ( (type*)0 )->member ) / sizeof( ( (type*)0 )->member[0] ) )
 
 static void sensor_GetData( task_param_t param );
 static void sensor_InitModules();
+void sensors_power();
 
 static mutex_t
   taskAccessMutex;
@@ -22,6 +37,8 @@ task_handler_t
  */
 osa_status_t sensor_Init()
 {
+	sensors_power();
+
 	osa_status_t
 		osaStatus = kStatus_OSA_Success;
 
@@ -136,4 +153,10 @@ static void sensor_GetData( task_param_t param )
 		 OSA_TimeDelay( 10 );
 	    }
 
+}
+
+void sensors_power(){
+	PWR_HTU_TSL_TurnOFF();
+	PWR_HR_TurnOFF();
+	PWR_BATT_TurnOFF();
 }
