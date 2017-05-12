@@ -157,6 +157,8 @@ typedef enum
 	alertIn_type_notification  		 = 1,
 	alertIn_type_settings            = 2,
 	alertIn_type_timeUpdate    	     = 3,
+	alertIn_type_readFlash			 = 4,
+        alertIn_type_eraseFlash			 = 5
 
 } hostInterface_alertIn_type_t;
 

@@ -20,6 +20,9 @@
  * create the sensor task
  */
 osa_status_t sensor_Init();
+uint16_t showDistance();
 
+void flash_SensorInit();
+void flash_SensorDeInit();
 
 #endif /* SENSORS_INC_SENSOR_DRIVER_H_ */

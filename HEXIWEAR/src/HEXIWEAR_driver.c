@@ -47,6 +47,8 @@
 
 #include "PWR_Manager.h"
 
+#include "FLASH_driver.h"
+
 #include "error.h"
 #include "error_types.h"
 
@@ -86,6 +88,9 @@ void HEXIWEAR_startup( task_param_t param )
   GPIO_DRV_SetPinOutput( KW40_RST );
   OSA_TimeDelay( 200 );
 
+  //external flash setup
+  status |= FLASH_Init( &flashModule, &flashSettings );
+
   // intern flash initialization
   INTFLASH_Init();
 
@@ -108,8 +113,8 @@ void HEXIWEAR_startup( task_param_t param )
     catch( CATCH_INIT );
   }
 
-//  CLOCK_SYS_Init( g_clockManConfigsArr, FSL_CLOCK_MANAGER_CONFIG_CNT, g_clockManCallbacksArr, FSL_CLOCK_MANAGER_CALLBACK_CNT );
-//  POWER_SYS_Init( powerConfigsArr, 2U, powerStaticCallbacksConfigsArr, 0 );
+  CLOCK_SYS_Init( g_clockManConfigsArr, FSL_CLOCK_MANAGER_CONFIG_CNT, g_clockManCallbacksArr, FSL_CLOCK_MANAGER_CALLBACK_CNT );
+  POWER_SYS_Init( powerConfigsArr, 2U, powerStaticCallbacksConfigsArr, 0 );
 
   while (1)
   {

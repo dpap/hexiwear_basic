@@ -84,6 +84,8 @@ static void HostInterface_RxCallback(uint32_t instance, void *uartState);
 static osa_status_t HostInterface_CmdQueueMsgPut( hostInterface_packet_t* pHostInterface_packet );
 osa_status_t HostInterface_CmdQueueMsgGet( hostInterface_packet_t* pHostInterface_packet );
 
+static uint8_t FLASH_SendToKW40( uint8_t flashVal[20] , uint8_t length);
+
 /**
  * this function handles the packet arrived via comm interface
  * @param self received packet
@@ -105,6 +107,48 @@ static void PacketHandler( hostInterface_packet_t* self )
     {
     	HostInterface_CmdQueueMsgPut( self );
     }
+    // alert service
+    case packetType_alertIn:
+    {
+    	//RTC_UpdateAlarm();
+    	//haptic_Vibrate();
+
+	  switch(self->data[0])
+	  {
+		  case alertIn_type_notification:
+		  {
+				break;
+		  }
+
+		  case alertIn_type_timeUpdate:
+		  {
+			  uint32_t
+				  timestamp;
+
+			  memcpy((uint8_t *)&timestamp, &self->data[2], 4);
+			  //RTC_UpdateCurrentTime(timestamp);
+			  //haptic_Vibrate();
+			  break;
+		  }
+		  case alertIn_type_readFlash:
+		  {
+			  uint32_t address;
+			  uint8_t length;
+			  uint8_t data[20];
+			  memcpy ((uint8_t *)&length, &self->data[1],1);
+			  memcpy ((uint8_t *)&address, &self->data[2],4);
+			  if (length <=20 )
+				  FLASH_ReadData(address,&data,length);
+			  	  FLASH_SendToKW40(&data,length);
+			  break;
+		  }
+		  case alertIn_type_eraseFlash:
+			  FLASH_EraseBulk();
+			  break;
+	  }
+	  break;
+	}
+
     default: {}
   }
 }
@@ -396,4 +440,50 @@ osa_status_t HostInterface_CmdQueueMsgGet( hostInterface_packet_t* pHostInterfac
     catch(2);
   }
   return (osa_status_t)status;
+}
+
+/**
+ * send flash data packet to KW40
+ */
+static uint8_t FLASH_SendToKW40( uint8_t flashVal[20] , uint8_t length)
+{
+	//uint8_t
+	//flashVal [20] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19};
+
+	if (length > 20) return 1;
+
+	hostInterface_packet_t
+        packetToSend;
+
+    //linkState_t
+  	  //currentState = watch_CurrentLinkStateGet();
+
+    //if ( linkState_connected == currentState )
+	if (1)
+    {
+		osa_status_t
+			txStatus = kStatus_OSA_Success;
+
+	//clear 20 bytes
+    	memset(&(packetToSend.data[0]),0,20);
+
+	packetToSend.type   = packetType_alertOut,
+	packetToSend.length = length;
+	memcpy( (void*)&(packetToSend.data[0]), (void*)flashVal, length );
+	packetToSend.data[ packetToSend.length ] = gHostInterface_trailerByte;
+
+		txStatus = HostInterface_TxQueueMsgPut( &packetToSend, true );
+		if ( kStatus_OSA_Success != txStatus )
+		{
+			catch( CATCH_QUEUE );
+			return 1;
+		}
+
+		return 0;
+    }
+
+    else
+    {
+    	return 1;
+    }
 }

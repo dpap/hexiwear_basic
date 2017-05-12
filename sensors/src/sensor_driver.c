@@ -4,8 +4,23 @@
  *
  *      Author: dp
  */
+#include "math.h"
 #include "sensor_driver.h"
 #include "host_mcu_interface.h"
+
+#include "FLASH_driver.h"
+
+static mutex_t
+  taskAccessMutex;
+
+task_handler_t
+  hexiwear_sensor_TAG_handler;
+
+static msg_queue_handler_t
+  sensorProc_txQueueHnd;
+
+static mutex_t
+  sensorProcessMutex;
 
 static bool
     isPowerActive_HTU_TSL = false,
@@ -23,15 +38,28 @@ static bool
 
 #define TypeMember_NumEl( type, member ) ( sizeof( ( (type*)0 )->member ) / sizeof( ( (type*)0 )->member[0] ) )
 
+/** message queues */
+int16_t accData[3];
+int16_t accDataPrev[3] = {0,0,0};
+static int16_t distance=0;
+static uint32_t accDistAverage = 0;
+static uint16_t accCount=0;
+#define WINDOWSIZE 1000;
+static uint16_t window = WINDOWSIZE;
+static uint16_t distanceAverage=0;
+
+MSG_QUEUE_DECLARE( sensorProc_txQueue, 5, sizeof(accData) );
+
 static void sensor_GetData( task_param_t param );
 static void sensor_InitModules();
 void sensors_power();
+static void sensor_InitProcessing();
+static void sensor_ProcessData( task_param_t param );
+uint16_t calculateParameters(uint16_t accData[3],uint16_t accDataPrev[3]);
 
-static mutex_t
-  taskAccessMutex;
-
-task_handler_t
-  hexiwear_sensor_TAG_handler;
+void flash_writeSensorData(uint8_t* data, uint32_t length);
+uint32_t flashFindNextValidSector();
+uint32_t flashBlockInit(uint32_t address);
 /**
  * create the sensor task
  */
@@ -60,6 +88,7 @@ osa_status_t sensor_Init()
 		return SENSOR_STATUS_ERROR;
 	}
 	sensor_InitModules();
+	sensor_InitProcessing();
 
 	osaStatus = OSA_TaskCreate  (
 									sensor_GetData,
@@ -77,6 +106,17 @@ osa_status_t sensor_Init()
 		catch( CATCH_INIT );
 		return SENSOR_STATUS_ERROR;
 	}
+
+	osaStatus = OSA_TaskCreate  (
+									sensor_ProcessData,
+									(uint8_t*)"Sensor Task Process Data",
+									0x1000,
+									NULL,
+									0,
+									(task_param_t)0,
+									false,
+									NULL
+								);
 
 	return osaStatus;
 }
@@ -148,6 +188,14 @@ static void sensor_GetData( task_param_t param )
 				  asm ("nop");
 			   }
 
+				BaseType_t
+				      status = xQueueSendToBack(sensorProc_txQueueHnd, &motionData.accData, OSA_WAIT_FOREVER );
+				    if ( pdPASS == status )	    {
+				    	 asm ("nop");
+				    } else {
+				    	 asm ("nop");
+				    }
+
 		   }
 		 }
 		 OSA_TimeDelay( 10 );
@@ -159,4 +207,205 @@ void sensors_power(){
 	PWR_HTU_TSL_TurnOFF();
 	PWR_HR_TurnOFF();
 	PWR_BATT_TurnOFF();
+}
+
+//Process sensor data
+static void sensor_InitProcessing(){
+
+	osa_status_t status = OSA_MutexCreate(&sensorProcessMutex);
+
+		if( kStatus_OSA_Success != status )
+		{
+			catch( CATCH_QUEUE ) ;
+		}
+	  // create TX message queue
+      int16_t accData[3];
+	  sensorProc_txQueueHnd = OSA_MsgQCreate (
+			  	  	  	  	  	  	  	  	  	  sensorProc_txQueue,
+	                                              5,
+	                                              sizeof(accData)
+	                                            );
+	  if ( NULL == sensorProc_txQueueHnd )
+	  {
+		  catch(2);
+	  }
+
+}
+/**
+ * Process data from sensors
+ */
+static void sensor_ProcessData( task_param_t param ){
+
+	int16_t accData[3];
+	while (1) {
+	    osa_status_t
+	        status = OSA_MsgQGet(sensorProc_txQueueHnd, &accData, OSA_WAIT_FOREVER);
+	      if ( kStatus_OSA_Error == status ){
+	        catch(2);
+	      } else {
+	        OSA_MutexLock( &sensorProcessMutex, OSA_WAIT_FOREVER );
+
+	    			distance = calculateParameters(accData,accDataPrev);
+	    			accDataPrev[0] = accData[0]; accDataPrev[1] = accData[1]; accDataPrev[2] = accData[2];
+
+					if (accCount >= window){
+						distanceAverage =accDistAverage/window;
+						accCount =0;
+						accDistAverage=0;
+						int16_t distAverageArr[1];
+						distAverageArr[0]=distanceAverage;
+						flash_writeSensorData(&distAverageArr,sizeof(accDistAverage));
+					} else {
+						accCount++;
+						accDistAverage += distance;
+					}
+	    	OSA_MutexUnlock(&sensorProcessMutex);
+	      }
+	}
+}
+
+uint16_t calculateParameters(uint16_t accData[3],uint16_t accDataPrev[3]){
+
+	//Distance
+	 int16_t x,y,z,x2,y2,z2;
+
+	 x=(int16_t) accData[0];
+	 y=(int16_t) accData[1];
+	 z=(int16_t) accData[2];
+	 x2=(int16_t) accDataPrev[0];
+	 y2=(int16_t) accDataPrev[1];
+	 z2=(int16_t) accDataPrev[2];
+
+	float distance = sqrt( pow((x2-x),2) + pow((y2-y),2) + pow((z2-z),2));
+
+	distance *= 100;
+	//uint16_t test = sqrt(25);
+	asm("nop");
+	return distance;
+}
+
+uint16_t showDistance(){
+	return distanceAverage;
+}
+
+
+//Flash storage
+/**
+ *
+ */
+#define  SECTOR0  		0x00000000L
+#define  SECTOR1  		0x00001000L
+#define  SECTOR2  		0x00002000L
+#define  SECTOR2047     0x007FF000L
+#define  END_OF_FLASH   0x007FFFFFL
+#define  SECTORSIZE     4096
+#define  MAX_SAMPLES    1350000L
+#define  bufferStartAddressPointer 0x00000010L
+
+const uint32_t bufferEndAddress 	= SECTOR2 + SECTORSIZE -1;
+
+static uint32_t flash_active = 0;
+static uint32_t bufferStartAddress	= SECTOR2;
+static uint32_t flash_currentAddress = 0x00002000L;
+
+void flash_SensorInit(){
+	uint32_t bufferCurrentAddress ;
+	//read magic numbers at start of flash
+	uint8_t data[3] = {0,0,0};
+	FLASH_ReadData(0, &data,3);
+	if (data[0] != 0x33 && data[1] != 0x44 && data[2] != 0x55) {
+		FLASH_EraseSector(SECTOR0);
+		data[0]=0x33; data[1] = 0x44; data[2] = 0x55;
+		FLASH_WriteData(0,  &data,3);
+		data[0]=0x0; data[1] = 0x0; data[2] = 0x0;
+		FLASH_ReadData(0, &data,3);
+		if (data[0] == 0x33 && data[1] == 0x44 && data[2] == 0x55){
+			bufferStartAddress = SECTOR2;
+			FLASH_WriteData(bufferStartAddressPointer, &bufferStartAddress,sizeof(bufferStartAddress));
+			flash_currentAddress = bufferStartAddress;
+			flash_currentAddress = flashBlockInit(flash_currentAddress);
+			flash_active = 1;
+		} else {
+			flash_active = 0;
+			return;
+		}
+	} else {
+		flash_currentAddress = flashFindNextValidSector();
+		if ((flash_currentAddress != 0xFFFFFFFF) && (flash_currentAddress < END_OF_FLASH) ) {
+			bufferStartAddress = flash_currentAddress;
+			flash_currentAddress = flashBlockInit(flash_currentAddress);
+			flash_active = 1;
+		} else {
+			flash_active = 0;
+			return;
+		}
+		asm("nop");
+	}
+
+}
+
+void flash_SensorDeInit(){
+	flash_active = 0;
+}
+
+uint32_t flashBlockInit(uint32_t address){
+	uint32_t timestamp;
+	uint32_t nextAddress = address;
+
+	window = WINDOWSIZE;
+
+	FLASH_ReadData(address,&timestamp,sizeof(timestamp) );
+	if (timestamp != 0xFFFFFFFF) {
+		FLASH_EraseSector(address);
+	}
+	/* TODO implement RTC
+	rtc_datetime_t watch_time;
+	RTC_GetCurrentTime(&watch_time);
+	RTC_HAL_ConvertDatetimeToSecs( &watch_time, &timestamp );
+	*/
+	timestamp = 1494332579;
+	FLASH_WriteData(address,&timestamp,sizeof(timestamp));
+
+	nextAddress = address + sizeof(address) + 2;
+	asm("nop");
+
+	return nextAddress;
+}
+
+uint32_t flashFindNextValidSector(){
+	uint32_t timestamp = 0xFFFFFFFF;
+	for (uint32_t addr = SECTOR2; addr <= SECTOR2047 ; addr = addr + 4096 ){
+		FLASH_ReadData(addr, &timestamp, sizeof(timestamp));
+		if (timestamp == 0xFFFFFFFF) return addr;
+	}
+	return 0xFFFFFFFF;
+}
+
+void flash_writeSensorData(uint8_t data[], uint32_t length){
+	if (flash_active == 0 ){
+			return;
+	} else if (flash_active > MAX_SAMPLES){
+		flash_active = 0;
+	}
+	else {
+		flash_active++;
+	}
+
+	if (flash_currentAddress == 0) {
+		flash_active = 0;
+		asm("nop");
+		return;
+	}
+
+	if ( (flash_currentAddress < bufferStartAddress) || (flash_currentAddress > END_OF_FLASH -1 )){
+		flash_active = 0;
+	} else if ( flash_currentAddress > bufferStartAddress + SECTORSIZE - 1 - length){
+		bufferStartAddress = (flash_currentAddress/4096 + 1) * 4096;
+	    flash_currentAddress = flashBlockInit(bufferStartAddress);
+	    FLASH_WriteData(flash_currentAddress,data,length);
+	    flash_currentAddress += length;
+	} else {
+		FLASH_WriteData(flash_currentAddress,data,length);
+		flash_currentAddress += length;
+	}
 }

@@ -42,6 +42,7 @@
 #include "OLED_driver.h"
 #include "OLED_resources.h"
 #include "agile.h"
+#include "sensor_driver.h"
 
 static bool isPowerActive_OLED    = false;
 static task_handler_t powerOled_taskHandler;
@@ -90,34 +91,37 @@ void Task1( task_param_t param )
 		    // buttons
 		    case packetType_pressUp:
 		    {
-		    	OLED_DrawText( "Up" );
-				// Insert your code here...
-				vTaskResume( powerOled_taskHandler);
 
+		    	OLED_DrawText( "Offline on" );
+				flash_SensorInit();
+
+				vTaskResume( powerOled_taskHandler);
 				break;
 		    }
 		    case packetType_pressDown:
 		    {
-		    	OLED_DrawText( "Down" );
-				// Insert your code here...
-				vTaskResume( powerOled_taskHandler);
 
+				OLED_DrawText( "Offline off" );
+				flash_SensorDeInit();
+
+				vTaskResume( powerOled_taskHandler);
 				break;
 		    }
 		    case packetType_pressLeft:
 		    {
 		    	//OLED_DrawText( "Left" );
-				// Insert your code here...
-				vTaskResume( powerOled_taskHandler);
 		    	drawAgileScreen();
-				break;
+
+				vTaskResume( powerOled_taskHandler);
+		    	break;
 		    }
 		    case packetType_pressRight:
 		    {
 		    	OLED_DrawText( "Right" );
 				vTaskResume( powerOled_taskHandler);
-				// Insert your code here...
-
+				char buffer [20];
+				sprintf(buffer, "Activity %lu", showDistance());
+				OLED_DrawText(&buffer);
 				break;
 		    }
 		    case packetType_passDisplay:
