@@ -110,8 +110,11 @@ void Task1( task_param_t param )
 		    case packetType_pressLeft:
 		    {
 		    	//OLED_DrawText( "Left" );
-		    	drawAgileScreen();
-
+		    	//drawAgileScreen();
+		    	char buffer [20];
+		    	uint16_t batLevel = (uint16_t) ( (showBatteryLevel()  * (4200))  /56000);
+		    	sprintf(buffer, "Batt: %lu mV",batLevel);
+		    	OLED_DrawText(&buffer);
 				vTaskResume( powerOled_taskHandler);
 		    	break;
 		    }
@@ -120,7 +123,7 @@ void Task1( task_param_t param )
 		    	OLED_DrawText( "Right" );
 				vTaskResume( powerOled_taskHandler);
 				char buffer [20];
-				sprintf(buffer, "Activity %lu", showDistance());
+				sprintf(buffer, "Activity %lu ", showDistance());
 				OLED_DrawText(&buffer);
 				break;
 		    }
@@ -176,6 +179,8 @@ void drawAgileScreen(){
      }
   }
 }
+
+
 void main()
 {
   /** initialize the hardware */

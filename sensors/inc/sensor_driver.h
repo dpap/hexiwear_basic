@@ -25,4 +25,6 @@ uint16_t showDistance();
 void flash_SensorInit();
 void flash_SensorDeInit();
 
+uint16_t showBatteryLevel();
+
 #endif /* SENSORS_INC_SENSOR_DRIVER_H_ */

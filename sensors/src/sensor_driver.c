@@ -9,6 +9,7 @@
 #include "host_mcu_interface.h"
 
 #include "FLASH_driver.h"
+#include "PEx.h"
 
 static mutex_t
   taskAccessMutex;
@@ -38,16 +39,23 @@ static bool
 
 #define TypeMember_NumEl( type, member ) ( sizeof( ( (type*)0 )->member ) / sizeof( ( (type*)0 )->member[0] ) )
 
-/** message queues */
+#define SAMPLE_PERIOD 1000
+#define WINDOWSIZE 10; //
+
 int16_t accData[3];
 int16_t accDataPrev[3] = {0,0,0};
 static int16_t distance=0;
 static uint32_t accDistAverage = 0;
 static uint16_t accCount=0;
-#define WINDOWSIZE 1000;
+
 static uint16_t window = WINDOWSIZE;
 static uint16_t distanceAverage=0;
 
+#define BAT_SAMPLE_TICK 30 // Period = BAT_SAMPLE_TICK * SAMPLE_PERIOD
+static uint8_t batSamplingCounter = 0;
+static uint16_t batLevel = 0;
+
+/** message queues */
 MSG_QUEUE_DECLARE( sensorProc_txQueue, 5, sizeof(accData) );
 
 static void sensor_GetData( task_param_t param );
@@ -60,6 +68,8 @@ uint16_t calculateParameters(uint16_t accData[3],uint16_t accDataPrev[3]);
 void flash_writeSensorData(uint8_t* data, uint32_t length);
 uint32_t flashFindNextValidSector();
 uint32_t flashBlockInit(uint32_t address);
+
+uint16_t getBatteryLevel();
 /**
  * create the sensor task
  */
@@ -138,6 +148,8 @@ static void sensor_GetData( task_param_t param )
 {
 	fxos_status_t fxosStatus;
 	motionData_t motionData;
+	 batLevel =  getBatteryLevel();
+
 	 while (1)
 	    {
 		 uint8_t sensorStatus;
@@ -198,15 +210,21 @@ static void sensor_GetData( task_param_t param )
 
 		   }
 		 }
-		 OSA_TimeDelay( 10 );
-	    }
+			 OSA_TimeDelay( SAMPLE_PERIOD );
+			 if (batSamplingCounter >= BAT_SAMPLE_TICK){
+				 batLevel =  getBatteryLevel();
+				 batSamplingCounter=0;
+			 } else{
+				 batSamplingCounter ++;
+			 }
+	     }
 
 }
 
 void sensors_power(){
 	PWR_HTU_TSL_TurnOFF();
 	PWR_HR_TurnOFF();
-	PWR_BATT_TurnOFF();
+	//PWR_BATT_TurnOFF();
 }
 
 //Process sensor data
@@ -408,4 +426,18 @@ void flash_writeSensorData(uint8_t data[], uint32_t length){
 		FLASH_WriteData(flash_currentAddress,data,length);
 		flash_currentAddress += length;
 	}
+}
+
+uint16_t getBatteryLevel(){
+
+	uint16_t adcData ;
+    ADC16_DRV_ConfigConvChn( FSL_BATTERY_ADC, 0, &BATTERY_ADC_ChnConfig);
+    ADC16_DRV_WaitConvDone ( FSL_BATTERY_ADC, 0 );
+    adcData = ADC16_DRV_GetConvValueSigned( FSL_BATTERY_ADC, 0 );
+    ADC16_DRV_PauseConv(FSL_BATTERY_ADC, 0 );
+	return adcData;
+}
+
+uint16_t showBatteryLevel(){
+	return batLevel;
 }
