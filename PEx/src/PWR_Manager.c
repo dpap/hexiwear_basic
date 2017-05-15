@@ -65,6 +65,21 @@ const power_manager_user_config_t PWR_CFG_Sleep = {
   .powerOnResetDetectionValue = kSmcPorEnabled,
 };
 
+const power_manager_callback_user_config_t
+    PWR_manager_CallbackBefore =
+    {
+            .callback     = power_CallBeforeSleep,        /*!< Entry of callback function.     */
+            .callbackType = kPowerManagerCallbackBefore,  /*!< Callback type.                  */
+            .callbackData = NULL                          /*!< Parameter of callback function. */
+    },
+
+	PWR_manager_CallbackAfter =
+    {
+            .callback     = power_CallAfterSleep,        /*!< Entry of callback function.     */
+            .callbackType = kPowerManagerCallbackAfter,  /*!< Callback type.                  */
+            .callbackData = NULL                         /*!< Parameter of callback function. */
+    };
+
 /*! @brief Array of pointers to User configuration structures */
 power_manager_user_config_t const * powerConfigsArr[] =
 {
@@ -75,6 +90,8 @@ power_manager_user_config_t const * powerConfigsArr[] =
 /*! @brief Array of pointers to User defined Callbacks configuration structures */
 power_manager_callback_user_config_t * powerStaticCallbacksConfigsArr[] =
 {
+		&PWR_manager_CallbackBefore,
+		&PWR_manager_CallbackAfter
 };
 
  /** END PWR_Manager. */

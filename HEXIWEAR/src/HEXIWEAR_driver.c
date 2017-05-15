@@ -64,7 +64,7 @@ void HEXIWEAR_startup( task_param_t param )
     status = 0;
 
   CLOCK_SYS_Init( g_clockManConfigsArr, FSL_CLOCK_MANAGER_CONFIG_CNT, g_clockManCallbacksArr, FSL_CLOCK_MANAGER_CALLBACK_CNT );
-  POWER_SYS_Init( powerConfigsArr, 2U, powerStaticCallbacksConfigsArr, 0 );
+  POWER_SYS_Init( powerConfigsArr, 2U, powerStaticCallbacksConfigsArr, 2U );
   //for (int i=0; i<120,000,000 ; i++ ) asm ("nop");
   for (int i=0; i< 50000 ; i++ ) asm ("nop");
 

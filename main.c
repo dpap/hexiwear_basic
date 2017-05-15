@@ -43,6 +43,7 @@
 #include "OLED_resources.h"
 #include "agile.h"
 #include "sensor_driver.h"
+#include "power_driver.h"
 
 static bool isPowerActive_OLED    = false;
 static task_handler_t powerOled_taskHandler;
@@ -148,6 +149,7 @@ void powerOLED( task_param_t param )
 	while (1){
 		OSA_TimeDelay( 10000 );
 		PWR_OLED_TurnOFF();
+		power_PutMCUToSleep();
 		vTaskSuspend( powerOled_taskHandler);
 		PWR_OLED_TurnON();
 	}

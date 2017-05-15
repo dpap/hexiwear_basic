@@ -26,5 +26,6 @@ void flash_SensorInit();
 void flash_SensorDeInit();
 
 uint16_t showBatteryLevel();
+void forceGetBatteryLevel();
 
 #endif /* SENSORS_INC_SENSOR_DRIVER_H_ */

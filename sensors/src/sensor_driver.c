@@ -441,3 +441,7 @@ uint16_t getBatteryLevel(){
 uint16_t showBatteryLevel(){
 	return batLevel;
 }
+
+void forceGetBatteryLevel(){
+	batLevel =  getBatteryLevel();
+}

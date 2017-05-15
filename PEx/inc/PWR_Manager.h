@@ -75,9 +75,14 @@
 #include "Cpu.h"
 #include "fsl_power_manager.h"
 
+#include "power_driver.h"
+
 /*! @brief Power manager configuration declaration */
 extern const power_manager_user_config_t PWR_CFG_Run;
 extern const power_manager_user_config_t PWR_CFG_Sleep;
+
+extern const power_manager_callback_user_config_t PWR_manager_CallbackBefore;
+extern const power_manager_callback_user_config_t PWR_manager_CallbackAfter;
 
 /*! @brief Array of pointers to User configuration structures */
 extern power_manager_user_config_t const * powerConfigsArr[];
