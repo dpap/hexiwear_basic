@@ -85,7 +85,7 @@ void SPI2_IRQHandler(void)
 
 void RTC_IRQHandler(void)
 {
-  /** Write your code here ... */
+	RTC_AlarmCallback();
 }
 
 void RTC_Seconds_IRQHandler(void)

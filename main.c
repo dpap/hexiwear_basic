@@ -44,6 +44,7 @@
 #include "agile.h"
 #include "sensor_driver.h"
 #include "power_driver.h"
+#include "rtc_driver.h"
 
 static bool isPowerActive_OLED    = false;
 static task_handler_t powerOled_taskHandler;
@@ -53,6 +54,7 @@ static task_handler_t powerOled_taskHandler;
 #define PWR_OLED_TurnOFF() isPowerActive_OLED = false; GPIO_DRV_ClearPinOutput( PWR_OLED )
 
 void drawAgileScreen();
+void resetOLED_dynamicArea();
 
 void Task1( task_param_t param )
 {
@@ -113,9 +115,26 @@ void Task1( task_param_t param )
 		    	//OLED_DrawText( "Left" );
 		    	//drawAgileScreen();
 		    	char buffer [20];
+		    	oled_dynamic_area.yCrd = 0;
+		    	oled_dynamic_area.height = 48;
+		    	OLED_SetDynamicArea( &oled_dynamic_area );
+		    	rtc_datetime_t watch_time;
+		    	RTC_GetCurrentTime(&watch_time);
+		    	snprintf( (char*)buffer, 12, "Time: %02d:%02d", watch_time.hour, watch_time.minute);
+		    	OLED_DrawText(&buffer);
+
+		    	oled_dynamic_area.yCrd = 48;
+		    	oled_dynamic_area.height = 47;
+		    	OLED_SetDynamicArea( &oled_dynamic_area );
+		    	forceGetBatteryLevel();
 		    	uint16_t batLevel = (uint16_t) ( (showBatteryLevel()  * (4200))  /56000);
 		    	sprintf(buffer, "Batt: %lu mV",batLevel);
 		    	OLED_DrawText(&buffer);
+
+		    	oled_dynamic_area.yCrd = 0;
+		    	oled_dynamic_area.height = 96;
+		    	OLED_SetDynamicArea( &oled_dynamic_area );
+
 				vTaskResume( powerOled_taskHandler);
 		    	break;
 		    }

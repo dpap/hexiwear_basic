@@ -59,11 +59,11 @@
 #include "power_driver.h"
 
 /** private type definitions */
- typedef enum
-		  {
-		      linkState_disconnected = 0,
-		      linkState_connected    = 1,
-		  } linkState_t;
+typedef enum
+{
+    linkState_disconnected = 0,
+    linkState_connected    = 1,
+} linkState_t;
 
 /** private memory declarations */
 static hostInterface_packet_t
@@ -77,6 +77,8 @@ static hostInterface_rxState_t
 
 static bool
   isWakingTouch = false;
+
+static linkState_t linkState = linkState_disconnected;
 
 /** message queues */
 MSG_QUEUE_DECLARE( hostInterface_rxQueue, gHostInterface_msgNum, sizeof(hostInterface_packet_t) );
@@ -134,7 +136,7 @@ static void PacketHandler( hostInterface_packet_t* self )
 				  timestamp;
 
 			  memcpy((uint8_t *)&timestamp, &self->data[2], 4);
-			  //RTC_UpdateCurrentTime(timestamp);
+			  RTC_UpdateCurrentTime(timestamp);
 			  //haptic_Vibrate();
 			  break;
 		  }
@@ -156,15 +158,16 @@ static void PacketHandler( hostInterface_packet_t* self )
 	  }
 	  case packetType_linkStateSend:
 	  		{
-	  			linkState_t linkState = self->data[0];
-	  			switch(linkState){
+	  			linkState_t linkStateLocal = self->data[0];
+	  			switch(linkStateLocal){
 	  			case linkState_disconnected:{
-	  				//power_PutMCUToSleep();
+	  				linkState = linkState_disconnected;
 	  				self->type = packetType_pressLeft;
 	  				HostInterface_CmdQueueMsgPut( self );
 	  				break;
 	  			}
 	  			case linkState_connected:{
+	  				linkState = linkState_connected;
 	  				break;
 	  			}
 	  			default:{
@@ -511,4 +514,12 @@ static uint8_t FLASH_SendToKW40( uint8_t flashVal[20] , uint8_t length)
     {
     	return 1;
     }
+}
+
+bool getLinkStateConnected(){
+	if (linkState == linkState_connected)
+		return true;
+	else
+		return false;
+
 }

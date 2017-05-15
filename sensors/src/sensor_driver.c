@@ -11,6 +11,7 @@
 #include "FLASH_driver.h"
 #include "PEx.h"
 
+#include "power_driver.h"
 static mutex_t
   taskAccessMutex;
 
@@ -121,7 +122,7 @@ osa_status_t sensor_Init()
 									(uint8_t*)"Sensor Task Process Data",
 									0x1000,
 									NULL,
-									0,
+									HEXIWEAR_APP_PRIO,
 									(task_param_t)0,
 									false,
 									NULL
@@ -159,8 +160,9 @@ static void sensor_GetData( task_param_t param )
 		 {
 			fxosStatus = STATUS_FXOS_ERROR;
 			FXOS_SoftReset();
-			OSA_TimeDelay(100);
+			OSA_TimeDelay(10);
 			FXOS_RecoverI2C();
+			sensor_InitModules();
 		 }
 		 else
 		 {
@@ -212,7 +214,8 @@ static void sensor_GetData( task_param_t param )
 
 		   }
 		 }
-			 OSA_TimeDelay( SAMPLE_PERIOD );
+			 //OSA_TimeDelay( SAMPLE_PERIOD );
+		 	 pauseSensorTask();
 			 if (batSamplingCounter >= BAT_SAMPLE_TICK){
 				 batLevel =  getBatteryLevel();
 				 batSamplingCounter=0;
@@ -274,12 +277,15 @@ static void sensor_ProcessData( task_param_t param ){
 						accDistAverage=0;
 						int16_t distAverageArr[1];
 						distAverageArr[0]=distanceAverage;
-						flash_writeSensorData(&distAverageArr,sizeof(accDistAverage));
+						flash_writeSensorData(&distAverageArr,sizeof(uint16_t));
 					} else {
 						accCount++;
 						accDistAverage += distance;
 					}
 	    	OSA_MutexUnlock(&sensorProcessMutex);
+	      }
+	      if (getLinkStateConnected() == false){
+	    	  power_PutMCUToSleep();
 	      }
 	}
 }
@@ -378,12 +384,12 @@ uint32_t flashBlockInit(uint32_t address){
 	if (timestamp != 0xFFFFFFFF) {
 		FLASH_EraseSector(address);
 	}
-	/* TODO implement RTC
+	// TODO implement RTC
 	rtc_datetime_t watch_time;
 	RTC_GetCurrentTime(&watch_time);
 	RTC_HAL_ConvertDatetimeToSecs( &watch_time, &timestamp );
-	*/
-	timestamp = 1494332579;
+
+	//timestamp = 1494332579;
 	FLASH_WriteData(address,&timestamp,sizeof(timestamp));
 
 	nextAddress = address + sizeof(address) + 2;
@@ -446,4 +452,12 @@ uint16_t showBatteryLevel(){
 
 void forceGetBatteryLevel(){
 	batLevel =  getBatteryLevel();
+}
+
+void pauseSensorTask(){
+	vTaskSuspend(hexiwear_sensor_TAG_handler);
+}
+
+void resumeSensorTask(){
+	vTaskResume(hexiwear_sensor_TAG_handler);
 }

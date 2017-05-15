@@ -93,6 +93,8 @@ void HEXIWEAR_startup( task_param_t param )
   GPIO_DRV_SetPinOutput( KW40_RST );
   OSA_TimeDelay( 200 );
 
+  status |= RTC_Init();
+
   //external flash setup
   status |= FLASH_Init( &flashModule, &flashSettings );
 
