@@ -56,7 +56,15 @@
 #include "host_mcu_interface_types.h"
 #include "host_mcu_interface_defs.h"
 
+#include "power_driver.h"
+
 /** private type definitions */
+ typedef enum
+		  {
+		      linkState_disconnected = 0,
+		      linkState_connected    = 1,
+		  } linkState_t;
+
 /** private memory declarations */
 static hostInterface_packet_t
   hostInterface_rxPacket;
@@ -146,6 +154,23 @@ static void PacketHandler( hostInterface_packet_t* self )
 			  FLASH_EraseBulk();
 			  break;
 	  }
+	  case packetType_linkStateSend:
+	  		{
+	  			linkState_t linkState = self->data[0];
+	  			switch(linkState){
+	  			case linkState_disconnected:{
+	  				//power_PutMCUToSleep();
+	  				self->type = packetType_pressLeft;
+	  				HostInterface_CmdQueueMsgPut( self );
+	  				break;
+	  			}
+	  			case linkState_connected:{
+	  				break;
+	  			}
+	  			default:{
+	  				}
+	  			}
+	  		}
 	  break;
 	}
 

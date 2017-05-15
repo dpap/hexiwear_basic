@@ -48,8 +48,12 @@ power_manager_error_code_t power_CallAfterSleep (
 {
     /** disable UART edge interrupt circuit */
     UART_WR_BDH_RXEDGIE( g_uartBase[4] , 0 );
+
     BLUE_LED_ON();
+    //read bat level after power up
     forceGetBatteryLevel();
+    //fix issue with Accel not working after power down
+    sensor_InitModules();
     return kPowerManagerSuccess;
 }
 

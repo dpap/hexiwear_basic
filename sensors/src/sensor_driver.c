@@ -59,7 +59,6 @@ static uint16_t batLevel = 0;
 MSG_QUEUE_DECLARE( sensorProc_txQueue, 5, sizeof(accData) );
 
 static void sensor_GetData( task_param_t param );
-static void sensor_InitModules();
 void sensors_power();
 static void sensor_InitProcessing();
 static void sensor_ProcessData( task_param_t param );
@@ -131,7 +130,7 @@ osa_status_t sensor_Init()
 	return osaStatus;
 }
 
-static void sensor_InitModules()
+void sensor_InitModules()
 {
 	fxos_status_t fxosStatus = FXOS_Init( &fxosModule, &fxosSettings );
 	if ( STATUS_FXOS_SUCCESS != fxosStatus )
@@ -159,6 +158,9 @@ static void sensor_GetData( task_param_t param )
 		 if ( 0x00 == sensorStatus )
 		 {
 			fxosStatus = STATUS_FXOS_ERROR;
+			FXOS_SoftReset();
+			OSA_TimeDelay(100);
+			FXOS_RecoverI2C();
 		 }
 		 else
 		 {
