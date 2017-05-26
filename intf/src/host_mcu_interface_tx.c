@@ -298,4 +298,23 @@ static void HostInterface_ConfirmWaitHandler()
   }
 }
 
+/**
+ * send request to toggle advertisement mode
+ */
+void bluetooth_SendToggleAdvModeReq()
+{
+	static hostInterface_packet_t dataPacket =
+	{
+		.start1 = gHostInterface_startByte1,
+		.start2 = gHostInterface_startByte2,
+		.length = 0,
+		.data[0] = gHostInterface_trailerByte
+	};
 
+	dataPacket.type = packetType_advModeToggle;
+
+	//confirmation set to false to avoid double toggle of BT advMode
+	HostInterface_TxQueueMsgPut((hostInterface_packet_t *)&dataPacket, false);
+	//while(HostInterface_TxQueueMsgPut((hostInterface_packet_t *)&dataPacket, true) != kStatus_OSA_Success);
+	//haptic_Vibrate();
+}

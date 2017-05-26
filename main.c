@@ -48,7 +48,7 @@
 
 static bool isPowerActive_OLED    = false;
 static task_handler_t powerOled_taskHandler;
-
+static bool guiControlLeft = false;
 
 #define PWR_OLED_TurnON()  GPIO_DRV_SetPinOutput( PWR_OLED ); OSA_TimeDelay( 50 ); isPowerActive_OLED = true
 #define PWR_OLED_TurnOFF() isPowerActive_OLED = false; GPIO_DRV_ClearPinOutput( PWR_OLED )
@@ -94,10 +94,14 @@ void Task1( task_param_t param )
 		    // buttons
 		    case packetType_pressUp:
 		    {
-
-		    	OLED_DrawText( "Offline on" );
-				flash_SensorInit();
-
+		    	if (guiControlLeft == true) {
+		    		OLED_DrawText( "Toggle Bluetooth" );
+		    		bluetooth_SendToggleAdvModeReq();
+		    		guiControlLeft = false;
+		    	} else {
+		    		OLED_DrawText( "Offline on" );
+		    		flash_SensorInit();
+		    	}
 				vTaskResume( powerOled_taskHandler);
 				break;
 		    }
@@ -112,6 +116,7 @@ void Task1( task_param_t param )
 		    }
 		    case packetType_pressLeft:
 		    {
+		    	guiControlLeft = true;
 		    	//OLED_DrawText( "Left" );
 		    	//drawAgileScreen();
 		    	char buffer [20];
@@ -145,6 +150,7 @@ void Task1( task_param_t param )
 				char buffer [20];
 				sprintf(buffer, "Activity %lu ", showDistance());
 				OLED_DrawText(&buffer);
+
 				break;
 		    }
 		    case packetType_passDisplay:
@@ -157,6 +163,20 @@ void Task1( task_param_t param )
 		    	sprintf(buffer, "Pin %lu", passkey);
 		    	OLED_DrawText(&buffer);
 		    }
+		     case packetType_advModeSend:
+		      {
+		    	  enum
+				  {
+					bluetooth_advMode_disable  = 0,
+					bluetooth_advMode_enable   = 1,
+				  } bluetooth_advMode;
+				  bluetooth_advMode = command_packet.data[0];
+				  if (bluetooth_advMode == bluetooth_advMode_disable) {
+					  OLED_DrawText("Bluetooth Disabled");
+				  } else if (bluetooth_advMode == bluetooth_advMode_enable){
+					  OLED_DrawText("Bluetooth Enabled");
+				  }
+		      }
 		    default: {}
 	    }
 	}

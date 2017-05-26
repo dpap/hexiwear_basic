@@ -156,6 +156,11 @@ static void PacketHandler( hostInterface_packet_t* self )
 			  FLASH_EraseBulk();
 			  break;
 	  }
+	 case packetType_advModeSend:
+	  {
+	  HostInterface_CmdQueueMsgPut( self );
+	  break;
+	  }
 	  case packetType_linkStateSend:
 	  		{
 	  			linkState_t linkStateLocal = self->data[0];
